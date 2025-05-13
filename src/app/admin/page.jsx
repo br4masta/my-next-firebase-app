@@ -55,7 +55,7 @@ function ExperienceTab() {
     name: '',
     tahun: '',
     description: '',
-    status: 'work' // Add status field with default value
+    type: 'work' // Add status field with default value
   });
   
   // State for experiences list
@@ -79,8 +79,8 @@ function ExperienceTab() {
       const data = await getExperiences();
       // Group experiences by status
       const grouped = {
-        work: data.filter(exp => exp.status === 'work'),
-        education: data.filter(exp => exp.status === 'education')
+        work: data.filter(exp => exp.type === 'work'),
+        education: data.filter(exp => exp.type === 'education')
       };
       setExperiences(grouped);
     } catch (error) {
@@ -249,10 +249,10 @@ function ExperienceTab() {
           </div>
 
           <div className="mb-4">
-            <label className="block mb-1">Status</label>
+            <label className="block mb-1">type</label>
             <select
-              name="status"
-              value={formData.status}
+              name="type"
+              value={formData.type}
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded"
               required
@@ -294,7 +294,7 @@ function SkillsTab() {
   const [skills, setSkills] = useState({
     current: [],
     ai: [],
-    progress: []
+    learning: []
   });
   
   // State for edit mode
@@ -315,7 +315,7 @@ function SkillsTab() {
       const grouped = {
         current: allSkills.filter(skill => skill.status === 'current'),
         ai: allSkills.filter(skill => skill.status === 'ai'),
-        progress: allSkills.filter(skill => skill.status === 'progress')
+        learning: allSkills.filter(skill => skill.status === 'learning')
       };
       
       setSkills(grouped);
@@ -480,7 +480,7 @@ function SkillsTab() {
             >
               <option value="current">Current</option>
               <option value="ai">AI</option>
-              <option value="progress">Progress</option>
+              <option value="learning">Learning</option>
             </select>
           </div>
           
@@ -498,7 +498,7 @@ function SkillsTab() {
         <h3 className="text-lg font-medium mb-2">Show Data</h3>
         {renderSkillsTable(skills.current, 'Current')}
         {renderSkillsTable(skills.ai, 'AI')}
-        {renderSkillsTable(skills.progress, 'Progress')}
+        {renderSkillsTable(skills.learning, 'Learning')}
       </div>
     </div>
   );

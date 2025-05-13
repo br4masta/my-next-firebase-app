@@ -13,7 +13,7 @@ export const getExperiences = async () => {
     const experiencesCollection = collection(db, 'experiences');
     const experienceSnapshot = await getDocs(experiencesCollection);
     return experienceSnapshot.docs.map(doc => ({
-    //   id: doc.id,
+      id: doc.id,
       ...doc.data()
     }));
   } catch (error) {
@@ -29,6 +29,7 @@ export const getExperiences = async () => {
  */
 export const addExperience = async (experienceData) => {
   try {
+    console.log(experienceData,'')
     const docRef = await addDoc(collection(db, 'experiences'), {
       ...experienceData,
       createdAt: new Date().toISOString()
