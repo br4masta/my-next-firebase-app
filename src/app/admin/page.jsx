@@ -54,11 +54,15 @@ function ExperienceTab() {
   const [formData, setFormData] = useState({
     name: '',
     tahun: '',
-    description: ''
+    description: '',
+    status: 'work' // Add status field with default value
   });
   
   // State for experiences list
-  const [experiences, setExperiences] = useState([]);
+  const [experiences, setExperiences] = useState({
+    work: [],
+    education: []
+  });
   
   // State for edit mode
   const [editMode, setEditMode] = useState(false);
@@ -73,7 +77,12 @@ function ExperienceTab() {
   const loadExperiences = async () => {
     try {
       const data = await getExperiences();
-      setExperiences(data);
+      // Group experiences by status
+      const grouped = {
+        work: data.filter(exp => exp.status === 'work'),
+        education: data.filter(exp => exp.status === 'education')
+      };
+      setExperiences(grouped);
     } catch (error) {
       console.error('Error loading experiences:', error);
       alert('Failed to load experiences');
@@ -115,7 +124,8 @@ function ExperienceTab() {
     setFormData({
       name: experience.name,
       tahun: experience.tahun,
-      description: experience.description
+      description: experience.description,
+      status: experience.status
     });
     setEditMode(true);
     setCurrentId(experience.id);
@@ -140,11 +150,59 @@ function ExperienceTab() {
     setFormData({
       name: '',
       tahun: '',
-      description: ''
+      description: '',
+      status: 'work'
     });
     setEditMode(false);
     setCurrentId(null);
   };
+
+  const renderExperienceTable = (statusExperiences, statusTitle) => (
+    <div className="mb-6">
+      <h3 className="text-lg font-medium mb-2">{statusTitle}</h3>
+      <table className="w-full border-collapse border border-gray-300">
+        <thead>
+          <tr className="bg-gray-100">
+            <th className="border border-gray-300 p-2">Name</th>
+            <th className="border border-gray-300 p-2">Tahun</th>
+            <th className="border border-gray-300 p-2">Description</th>
+            <th className="border border-gray-300 p-2">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {statusExperiences.length > 0 ? (
+            statusExperiences.map(experience => (
+              <tr key={experience.id}>
+                <td className="border border-gray-300 p-2">{experience.name}</td>
+                <td className="border border-gray-300 p-2">{experience.tahun}</td>
+                <td className="border border-gray-300 p-2">{experience.description}</td>
+                <td className="border border-gray-300 p-2">
+                  <button
+                    onClick={() => handleEdit(experience)}
+                    className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(experience.id)}
+                    className="px-2 py-1 bg-red-500 text-white rounded"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" className="border border-gray-300 p-2 text-center">
+                No {statusTitle.toLowerCase()} experiences found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
   
   return (
     <div>
@@ -189,6 +247,20 @@ function ExperienceTab() {
               required
             ></textarea>
           </div>
+
+          <div className="mb-4">
+            <label className="block mb-1">Status</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full p-2 border border-gray-300 rounded"
+              required
+            >
+              <option value="work">Work</option>
+              <option value="education">Education</option>
+            </select>
+          </div>
           
           <button
             type="submit"
@@ -202,47 +274,8 @@ function ExperienceTab() {
       {/* Show Data */}
       <div>
         <h3 className="text-lg font-medium mb-2">Show Data</h3>
-        <table className="w-full border-collapse border border-gray-300">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 p-2">Name</th>
-              <th className="border border-gray-300 p-2">Tahun</th>
-              <th className="border border-gray-300 p-2">Description</th>
-              <th className="border border-gray-300 p-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {experiences.length > 0 ? (
-              experiences.map(experience => (
-                <tr key={experience.id}>
-                  <td className="border border-gray-300 p-2">{experience.name}</td>
-                  <td className="border border-gray-300 p-2">{experience.tahun}</td>
-                  <td className="border border-gray-300 p-2">{experience.description}</td>
-                  <td className="border border-gray-300 p-2">
-                    <button
-                      onClick={() => handleEdit(experience)}
-                      className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(experience.id)}
-                      className="px-2 py-1 bg-red-500 text-white rounded"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="4" className="border border-gray-300 p-2 text-center">
-                  No experiences found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {renderExperienceTable(experiences.work, 'Work')}
+        {renderExperienceTable(experiences.education, 'Education')}
       </div>
     </div>
   );
@@ -501,6 +534,9 @@ function PortfolioTab() {
   // State for additional skills input
   const [newSkill, setNewSkill] = useState('');
   
+  // State for new image URL
+  const [newImageUrl, setNewImageUrl] = useState('');
+  
   // State for file uploads
   const [sourceFile, setSourceFile] = useState(null);
   const [contentFiles, setContentFiles] = useState([]);
@@ -688,6 +724,31 @@ function PortfolioTab() {
     setContentFiles([]);
     setNewSkill('');
   };
+
+  // Handle adding a new image URL
+  const handleAddImage = () => {
+    if (newImageUrl.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        modalContent: {
+          ...prev.modalContent,
+          images: [...prev.modalContent.images, newImageUrl.trim()]
+        }
+      }));
+      setNewImageUrl('');
+    }
+  };
+
+  // Handle removing an image
+  const handleRemoveImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      modalContent: {
+        ...prev.modalContent,
+        images: prev.modalContent.images.filter((_, i) => i !== index)
+      }
+    }));
+  };
   
   return (
     <div>
@@ -700,18 +761,14 @@ function PortfolioTab() {
           <div className="mb-4">
             <label className="block mb-1">Source Gambar</label>
             <input
-              type="file"
+              type="text"
               name="sourceGambar"
-              onChange={handleFileChange}
+              value={formData.sourceGambar}
+              onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded"
-              accept="image/*"
-              required={!editMode}
+              placeholder="Enter image URL"
+              required
             />
-            {formData.sourceGambar && (
-              <p className="text-sm text-gray-500 mt-1">
-                Current image: {formData.sourceGambar}
-              </p>
-            )}
           </div>
           
           <div className="mb-4">
@@ -725,7 +782,7 @@ function PortfolioTab() {
               required
             />
           </div>
-          
+
           <div className="mb-4">
             <label className="block mb-1">Category</label>
             <input
@@ -737,7 +794,7 @@ function PortfolioTab() {
               required
             />
           </div>
-          
+
           <div className="mb-4">
             <label className="block mb-1">Href</label>
             <input
@@ -749,7 +806,7 @@ function PortfolioTab() {
               required
             />
           </div>
-          
+
           <div className="mb-4">
             <label className="block mb-1">Link Detail</label>
             <input
@@ -761,27 +818,44 @@ function PortfolioTab() {
               required
             />
           </div>
-          
-          <h4 className="text-md font-medium mb-2">Content</h4>
-          
+
           <div className="mb-4">
-            <label className="block mb-1">Images</label>
-            <input
-              type="file"
-              name="contentImages"
-              onChange={handleFileChange}
-              className="w-full p-2 border border-gray-300 rounded"
-              accept="image/*"
-              multiple
-            />
+            <label className="block mb-1">Content Images</label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                className="flex-1 p-2 border border-gray-300 rounded"
+                placeholder="Enter image URL"
+              />
+              <button
+                type="button"
+                onClick={handleAddImage}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Add Image
+              </button>
+            </div>
             {formData.modalContent.images.length > 0 && (
-              <div className="text-sm text-gray-500 mt-1">
-                <p>Current images:</p>
-                <ul className="list-disc pl-5">
-                  {formData.modalContent.images.map((img, idx) => (
-                    <li key={idx}>{img}</li>
-                  ))}
-                </ul>
+              <div className="space-y-2">
+                {formData.modalContent.images.map((image, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={image}
+                      readOnly
+                      className="flex-1 p-2 border border-gray-300 rounded bg-gray-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index)}
+                      className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1002,3 +1076,5 @@ function PortfolioTab() {
     </div>
   );
 }
+
+  

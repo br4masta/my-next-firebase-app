@@ -13,7 +13,7 @@ export const getExperiences = async () => {
     const experiencesCollection = collection(db, 'experiences');
     const experienceSnapshot = await getDocs(experiencesCollection);
     return experienceSnapshot.docs.map(doc => ({
-      id: doc.id,
+    //   id: doc.id,
       ...doc.data()
     }));
   } catch (error) {
@@ -24,12 +24,15 @@ export const getExperiences = async () => {
 
 /**
  * Adds a new experience item to Firestore
- * @param {Object} experienceData - Experience data (name, tahun, description)
+ * @param {Object} experienceData - Experience data (name, tahun, description, type)
  * @returns {Promise<string>} ID of the created document
  */
 export const addExperience = async (experienceData) => {
   try {
-    const docRef = await addDoc(collection(db, 'experiences'), experienceData);
+    const docRef = await addDoc(collection(db, 'experiences'), {
+      ...experienceData,
+      createdAt: new Date().toISOString()
+    });
     return docRef.id;
   } catch (error) {
     console.error('Error adding experience:', error);
