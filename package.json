@@ -10,7 +10,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@firebase/firestore": "^4.7.12",
+    "@firebase/storage": "^0.13.8",
+    "@google-cloud/storage": "^5.18.0",
+    "@types/cors": "^2.8.18",
+    "cors": "^2.8.5",
     "firebase": "^11.7.1",
+    "firebase-admin": "^13.4.0",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -22,6 +28,6 @@
     "@types/react-dom": "^19",
     "next-export-optimize-images": "^4.6.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5.8.3"
   }
 }
