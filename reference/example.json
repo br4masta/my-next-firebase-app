@@ -1,0 +1,69 @@
+"experience"{
+    "work":      {
+                "name": `Morning Glory Enteprise - Front End Developer`,
+                "tahun": `02/2023 — Now`,
+                "description": `
+                Developing high-quality UI for multiple vendor projects to ensure seamless user experiences and optimal performance.
+                <ul class="timeline-text">
+                    <li>Transforming designs into high-quality, functional code for production.</li>
+                    <li>Building and maintaining responsive, user-friendly web interfaces.</li>
+                    <li>Optimizing web performance to ensure fast loading times and seamless user experiences.</li>
+                    <li>Implementing dynamic and interactive features to enhance user engagement.</li>
+                    <li>Integrating RESTful APIs and third-party services to enable robust functionality.</li>
+                    <li>Effectively prioritizing tasks and managing time to meet project deadlines.</li>
+                    <li>Collaborating cross-functionally with managers, developers, analysts, and engineering teams to improve application performance, ensure code quality, and deliver consistent, reliable solutions.</li>
+                </ul>`,
+            },
+        "education":{
+            {
+                        "name": `University Dr. Soetomo, Surabaya (Computer Science)`,
+                        "tahun": `2018 — 2022`,
+                        "description": `
+                        <ul class="timeline-text">
+                            <li>Developed a Final Project Management Application using CodeIgniter 4 and MySQL to help students efficiently manage and track their final project progress.</li>
+                            <li>Conducted research for the final project by creating an Augmented Reality application to introduce the environment of Purwosari 1 Elementary School in Bojonegoro, utilizing the Markerless User Defined Target method.</li>
+                        </ul>
+                        `
+                    },
+        }
+},
+"skills":{
+	"current":{
+				{
+            "image": "./assets/images/skills/next.png",
+            "name": "Next Js",
+        },
+	},
+	"ai":{
+				{
+            "image": "./assets/images/skills/ai/claude.png",
+            "name": "Claude",
+        },
+	},
+	"progress":{
+				{
+            "image": "./assets/images/skills/progress/aws.png",
+            "name": "AWS",
+        },
+	}
+},
+"portofolio":{
+      "sourceGambar": './assets/images/new_asset/muatpart.png',
+            "judul": 'MuatParts',
+            "category": 'web development',
+            "href": 'https://xdemoseller.assetlogistik.id/muatparts/landing',
+            "linkDetail":'https://brianbramasta.notion.site/Muatparts-1dd59c89e29c8019a1c5c87086f93df0',
+            "modalContent": {
+                "images": [
+                    './assets/images/new_asset/muatpart.png',
+                    './assets/images/new_asset/muatparts (1).png',
+                    './assets/images/new_asset/muatparts (2).png',
+                    './assets/images/new_asset/muatparts (3).png',
+                    // Add more images if needed
+                ],
+                "role": 'Frontend Developer',
+                "description": 'Designing product showcase management features, including adding, editing, viewing details, organizing products, and supporting a responsive display for both desktop and mobile.',
+                "skills": ['React', 'JavaScript', 'Tailwind CSS','Zustand'],
+               
+            }
+}
