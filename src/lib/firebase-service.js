@@ -12,10 +12,12 @@ export const getExperiences = async () => {
   try {
     const experiencesCollection = collection(db, 'experiences');
     const experienceSnapshot = await getDocs(experiencesCollection);
-    return experienceSnapshot.docs.map(doc => ({
+    const experiences = experienceSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    // Sort experiences by position
+    return experiences.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   } catch (error) {
     console.error('Error getting experiences:', error);
     throw error;
@@ -89,10 +91,12 @@ export const getSkills = async (status = null) => {
     }
     
     const skillsSnapshot = await getDocs(skillsQuery);
-    return skillsSnapshot.docs.map(doc => ({
+    const skills = skillsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    // Sort skills by position
+    return skills.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   } catch (error) {
     console.error('Error getting skills:', error);
     throw error;
@@ -153,10 +157,12 @@ export const getPortfolioItems = async () => {
   try {
     const portfolioCollection = collection(db, 'portfolio');
     const portfolioSnapshot = await getDocs(portfolioCollection);
-    return portfolioSnapshot.docs.map(doc => ({
+    const portfolioItems = portfolioSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    // Sort portfolio items by position
+    return portfolioItems.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   } catch (error) {
     console.error('Error getting portfolio items:', error);
     throw error;

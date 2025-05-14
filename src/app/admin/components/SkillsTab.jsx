@@ -2,15 +2,61 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSkills, addSkill, updateSkill, deleteSkill } from '@/lib/firebase-service';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// SortableTableRow component
+const SortableTableRow = ({ skill, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: skill.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td className="border border-gray-300 p-2">{skill.image}</td>
+      <td className="border border-gray-300 p-2">{skill.name}</td>
+      <td className="border border-gray-300 p-2">
+        <button
+          onClick={() => onEdit(skill)}
+          className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(skill.id)}
+          className="px-2 py-1 bg-red-500 text-white rounded"
+        >
+          Delete
+        </button>
+      </td>
+      <td className="border border-gray-300 p-2">
+        <button {...attributes} {...listeners} className="cursor-move px-2">
+          ⋮⋮
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 export default function SkillsTab() {
-  // State for form data
   const [formData, setFormData] = useState({
     image: '',
     name: '',
-    status: 'current' // Default status
+    status: 'current',
+    position: 0 // Add position field
   });
-  
+
   // State for skills lists by status
   const [skills, setSkills] = useState({
     current: [],
@@ -32,11 +78,11 @@ export default function SkillsTab() {
     try {
       const allSkills = await getSkills();
       
-      // Group skills by status
+      // Group skills by status and sort by position
       const grouped = {
-        current: allSkills.filter(skill => skill.status === 'current'),
-        ai: allSkills.filter(skill => skill.status === 'ai'),
-        learning: allSkills.filter(skill => skill.status === 'learning')
+        current: allSkills.filter(skill => skill.status === 'current').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+        ai: allSkills.filter(skill => skill.status === 'ai').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
+        learning: allSkills.filter(skill => skill.status === 'learning').sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       };
       
       setSkills(grouped);
@@ -57,13 +103,16 @@ export default function SkillsTab() {
     e.preventDefault();
     
     try {
+      const position = skills[formData.status].length; // New items go to the end
+      const dataToSave = { ...formData, position };
+      
       if (editMode) {
         // Update existing skill
-        await updateSkill(currentId, formData);
+        await updateSkill(currentId, dataToSave);
         alert('Skill updated successfully!');
       } else {
         // Add new skill
-        await addSkill(formData);
+        await addSkill(dataToSave);
         alert('Skill added successfully!');
       }
       
@@ -111,6 +160,40 @@ export default function SkillsTab() {
     setEditMode(false);
     setCurrentId(null);
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event, status) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      const oldIndex = skills[status].findIndex(skill => skill.id === active.id);
+      const newIndex = skills[status].findIndex(skill => skill.id === over.id);
+      
+      const newSkills = {
+        ...skills,
+        [status]: arrayMove(skills[status], oldIndex, newIndex)
+      };
+      
+      // Update positions in state
+      setSkills(newSkills);
+      
+      // Update positions in database
+      const updatedSkills = newSkills[status].map((skill, index) => ({
+        ...skill,
+        position: index
+      }));
+      
+      for (const skill of updatedSkills) {
+        await updateSkill(skill.id, { ...skill });
+      }
+    }
+  };
   
   // Render a skills table for a specific status
   const renderSkillsTable = (statusSkills, statusTitle) => (
@@ -122,37 +205,37 @@ export default function SkillsTab() {
             <th className="border border-gray-300 p-2">Image</th>
             <th className="border border-gray-300 p-2">Name</th>
             <th className="border border-gray-300 p-2">Action</th>
+            <th className="border border-gray-300 p-2">Drag</th>
           </tr>
         </thead>
         <tbody>
-          {statusSkills.length > 0 ? (
-            statusSkills.map(skill => (
-              <tr key={skill.id}>
-                <td className="border border-gray-300 p-2">{skill.image}</td>
-                <td className="border border-gray-300 p-2">{skill.name}</td>
-                <td className="border border-gray-300 p-2">
-                  <button
-                    onClick={() => handleEdit(skill)}
-                    className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(skill.id)}
-                    className="px-2 py-1 bg-red-500 text-white rounded"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="3" className="border border-gray-300 p-2 text-center">
-                No skills found
-              </td>
-            </tr>
-          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => handleDragEnd(event, statusTitle.toLowerCase())}
+          >
+            <SortableContext
+              items={statusSkills.map(skill => skill.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {statusSkills.length > 0 ? (
+                statusSkills.map(skill => (
+                  <SortableTableRow
+                    key={skill.id}
+                    skill={skill}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="border border-gray-300 p-2 text-center">
+                    No skills found
+                  </td>
+                </tr>
+              )}
+            </SortableContext>
+          </DndContext>
         </tbody>
       </table>
     </div>

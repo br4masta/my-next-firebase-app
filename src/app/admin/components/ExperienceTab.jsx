@@ -2,16 +2,63 @@
 
 import React, { useState, useEffect } from 'react';
 import { getExperiences, addExperience, updateExperience, deleteExperience } from '@/lib/firebase-service';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// SortableTableRow component
+const SortableTableRow = ({ experience, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: experience.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      <td className="border border-gray-300 p-2">{experience.name}</td>
+      <td className="border border-gray-300 p-2">{experience.tahun}</td>
+      <td className="border border-gray-300 p-2">{experience.description}</td>
+      <td className="border border-gray-300 p-2">
+        <button
+          onClick={() => onEdit(experience)}
+          className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(experience.id)}
+          className="px-2 py-1 bg-red-500 text-white rounded"
+        >
+          Delete
+        </button>
+      </td>
+      <td className="border border-gray-300 p-2">
+        <button {...attributes} {...listeners} className="cursor-move px-2">
+          ⋮⋮
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 export default function ExperienceTab() {
-  // State for form data
   const [formData, setFormData] = useState({
     name: '',
     tahun: '',
     description: '',
-    type: 'work' // Add status field with default value
+    type: 'work',
+    position: 0
   });
-  
+
   // State for experiences list
   const [experiences, setExperiences] = useState({
     work: [],
@@ -31,10 +78,10 @@ export default function ExperienceTab() {
   const loadExperiences = async () => {
     try {
       const data = await getExperiences();
-      // Group experiences by status
+      // Group experiences by type and sort by position
       const grouped = {
-        work: data.filter(exp => exp.type === 'work'),
-        education: data.filter(exp => exp.type === 'education')
+        work: data.filter(exp => exp.type === 'work').sort((a, b) => a.position - b.position),
+        education: data.filter(exp => exp.type === 'education').sort((a, b) => a.position - b.position)
       };
       setExperiences(grouped);
     } catch (error) {
@@ -54,17 +101,17 @@ export default function ExperienceTab() {
     e.preventDefault();
     
     try {
+      const position = experiences[formData.type].length; // New items go to the end
+      const dataToSave = { ...formData, position };
+      
       if (editMode) {
-        // Update existing experience
-        await updateExperience(currentId, formData);
+        await updateExperience(currentId, dataToSave);
         alert('Experience updated successfully!');
       } else {
-        // Add new experience
-        await addExperience(formData);
+        await addExperience(dataToSave);
         alert('Experience added successfully!');
       }
       
-      // Reset form and reload experiences
       resetForm();
       loadExperiences();
     } catch (error) {
@@ -79,7 +126,8 @@ export default function ExperienceTab() {
       name: experience.name,
       tahun: experience.tahun,
       description: experience.description,
-      type: experience.type
+      type: experience.type,
+      position: experience.position
     });
     setEditMode(true);
     setCurrentId(experience.id);
@@ -105,10 +153,46 @@ export default function ExperienceTab() {
       name: '',
       tahun: '',
       description: '',
-      status: 'work'
+      type: 'work',
+      position: 0
     });
     setEditMode(false);
     setCurrentId(null);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event, type) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      const oldIndex = experiences[type].findIndex(exp => exp.id === active.id);
+      const newIndex = experiences[type].findIndex(exp => exp.id === over.id);
+      
+      const newExperiences = {
+        ...experiences,
+        [type]: arrayMove(experiences[type], oldIndex, newIndex)
+      };
+      
+      // Update positions in the database
+      const updatedExperiences = newExperiences[type].map((exp, index) => ({
+        ...exp,
+        position: index
+      }));
+      
+      // Update state
+      setExperiences(newExperiences);
+      
+      // Update positions in database
+      for (const exp of updatedExperiences) {
+        await updateExperience(exp.id, { ...exp });
+      }
+    }
   };
 
   const renderExperienceTable = (statusExperiences, statusTitle) => (
@@ -121,38 +205,37 @@ export default function ExperienceTab() {
             <th className="border border-gray-300 p-2">Tahun</th>
             <th className="border border-gray-300 p-2">Description</th>
             <th className="border border-gray-300 p-2">Action</th>
+            <th className="border border-gray-300 p-2">Drag</th>
           </tr>
         </thead>
         <tbody>
-          {statusExperiences.length > 0 ? (
-            statusExperiences.map(experience => (
-              <tr key={experience.id}>
-                <td className="border border-gray-300 p-2">{experience.name}</td>
-                <td className="border border-gray-300 p-2">{experience.tahun}</td>
-                <td className="border border-gray-300 p-2">{experience.description}</td>
-                <td className="border border-gray-300 p-2">
-                  <button
-                    onClick={() => handleEdit(experience)}
-                    className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(experience.id)}
-                    className="px-2 py-1 bg-red-500 text-white rounded"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="4" className="border border-gray-300 p-2 text-center">
-                No {statusTitle.toLowerCase()} experiences found
-              </td>
-            </tr>
-          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => handleDragEnd(event, statusTitle.toLowerCase())}
+          >
+            <SortableContext
+              items={statusExperiences.map(exp => exp.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {statusExperiences.length > 0 ? (
+                statusExperiences.map(experience => (
+                  <SortableTableRow
+                    key={experience.id}
+                    experience={experience}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="border border-gray-300 p-2 text-center">
+                    No {statusTitle.toLowerCase()} experiences found
+                  </td>
+                </tr>
+              )}
+            </SortableContext>
+          </DndContext>
         </tbody>
       </table>
     </div>

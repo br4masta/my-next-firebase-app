@@ -2,6 +2,86 @@
 
 import React, { useState, useEffect } from 'react';
 import { getPortfolioItems, addPortfolioItem, updatePortfolioItem, deletePortfolioItem, uploadImage, uploadMultipleImages } from '@/lib/firebase-service';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// SortableTableRow component for drag and drop functionality
+const SortableTableRow = ({ item, onEdit, onDelete, onToggleExpand, isExpanded }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style}>
+      {/* Existing columns */}
+      <td className="border border-gray-300 p-2">
+        {item.sourceGambar && (
+          <span className="text-sm">{item.sourceGambar.substring(0, 30)}...</span>
+        )}
+      </td>
+      <td className="border border-gray-300 p-2">{item.judul}</td>
+      <td className="border border-gray-300 p-2">{item.category}</td>
+      <td className="border border-gray-300 p-2">
+        {item.href && (
+          <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+            Link
+          </a>
+        )}
+      </td>
+      <td className="border border-gray-300 p-2">
+        {item.linkDetail && (
+          <a href={item.linkDetail} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+            Detail
+          </a>
+        )}
+      </td>
+      <td className="border border-gray-300 p-2">
+        {item.modalContent?.description && (
+          <span className="text-sm">{item.modalContent.description.substring(0, 50)}...</span>
+        )}
+      </td>
+      <td className="border border-gray-300 p-2">
+        <button
+          onClick={() => onToggleExpand(item.id)}
+          className="px-2 py-1 bg-green-500 text-white rounded mr-2"
+        >
+          {isExpanded ? 'Hide Details' : 'Show Details'}
+        </button>
+        <button
+          onClick={() => onEdit(item)}
+          className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(item.id, {
+            sourceGambar: item.sourceGambar,
+            modalContent: item.modalContent
+          })}
+          className="px-2 py-1 bg-red-500 text-white rounded"
+        >
+          Delete
+        </button>
+      </td>
+      <td className="border border-gray-300 p-2">
+        <button {...attributes} {...listeners} className="cursor-move px-2">
+          ⋮⋮
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 export default function PortfolioTab() {
   // State for form data
@@ -16,7 +96,8 @@ export default function PortfolioTab() {
       role: '',
       description: '',
       skills: []
-    }
+    },
+    position: 0 // Add position field
   });
   
   // State for portfolio items
@@ -48,7 +129,9 @@ export default function PortfolioTab() {
   const loadPortfolioItems = async () => {
     try {
       const data = await getPortfolioItems();
-      setPortfolioItems(data);
+      // Sort items by position
+      const sortedItems = data.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      setPortfolioItems(sortedItems);
     } catch (error) {
       console.error('Error loading portfolio items:', error);
       alert('Failed to load portfolio items');
@@ -115,7 +198,7 @@ export default function PortfolioTab() {
     e.preventDefault();
     
     try {
-      let updatedData = { ...formData };
+      let updatedData = { ...formData, position: portfolioItems.length }; // New items go to the end
       
       // Upload source image if provided
       if (sourceFile) {
@@ -246,6 +329,34 @@ export default function PortfolioTab() {
         images: prev.modalContent.images.filter((_, i) => i !== index)
       }
     }));
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end and update positions
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      const oldIndex = portfolioItems.findIndex(item => item.id === active.id);
+      const newIndex = portfolioItems.findIndex(item => item.id === over.id);
+      
+      const newItems = arrayMove(portfolioItems, oldIndex, newIndex);
+      
+      // Update positions in state
+      setPortfolioItems(newItems);
+      
+      // Update positions in database
+      for (let i = 0; i < newItems.length; i++) {
+        const item = newItems[i];
+        await updatePortfolioItem(item.id, { ...item, position: i });
+      }
+    }
   };
   
   return (
@@ -447,127 +558,93 @@ export default function PortfolioTab() {
               <th className="border border-gray-300 p-2">Link Detail</th>
               <th className="border border-gray-300 p-2">Description</th>
               <th className="border border-gray-300 p-2">Action</th>
+              <th className="border border-gray-300 p-2">Drag</th>
             </tr>
           </thead>
           <tbody>
-            {portfolioItems.length > 0 ? (
-              portfolioItems.map(item => (
-                <React.Fragment key={item.id}>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={portfolioItems.map(item => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {portfolioItems.length > 0 ? (
+                  portfolioItems.map(item => (
+                    <React.Fragment key={item.id}>
+                      <SortableTableRow
+                        item={item}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onToggleExpand={() => toggleExpandedRow(item.id)}
+                        isExpanded={expandedRows[item.id]}
+                      />
+                      {expandedRows[item.id] && (
+                        <tr>
+                          <td colSpan="8" className="border border-gray-300 p-4 bg-gray-50">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Images */}
+                              <div>
+                                <h5 className="font-medium mb-2">Images:</h5>
+                                {item.modalContent?.images && item.modalContent.images.length > 0 ? (
+                                  <ul className="list-disc pl-5">
+                                    {item.modalContent.images.map((img, idx) => (
+                                      <li key={idx} className="mb-1">
+                                        <a href={img} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                          Image {idx + 1}
+                                        </a>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p>No images available</p>
+                                )}
+                              </div>
+                              
+                              {/* Other details */}
+                              <div>
+                                <div className="mb-3">
+                                  <h5 className="font-medium">Role:</h5>
+                                  <p>{item.modalContent?.role || 'N/A'}</p>
+                                </div>
+                                
+                                <div className="mb-3">
+                                  <h5 className="font-medium">Description:</h5>
+                                  <p>{item.modalContent?.description || 'N/A'}</p>
+                                </div>
+                                
+                                <div>
+                                  <h5 className="font-medium mb-1">Skills:</h5>
+                                  {item.modalContent?.skills && item.modalContent.skills.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {item.modalContent.skills.map((skill, idx) => (
+                                        <span key={idx} className="bg-gray-200 px-2 py-1 rounded text-sm">
+                                          {skill}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p>No skills listed</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
                   <tr>
-                    <td className="border border-gray-300 p-2">
-                      {item.sourceGambar && (
-                        <span className="text-sm">{item.sourceGambar.substring(0, 30)}...</span>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 p-2">{item.judul}</td>
-                    <td className="border border-gray-300 p-2">{item.category}</td>
-                    <td className="border border-gray-300 p-2">
-                      {item.href && (
-                        <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                          Link
-                        </a>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 p-2">
-                      {item.linkDetail && (
-                        <a href={item.linkDetail} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                          Detail
-                        </a>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 p-2">
-                      {item.modalContent?.description && (
-                        <span className="text-sm">{item.modalContent.description.substring(0, 50)}...</span>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 p-2">
-                      <button
-                        onClick={() => toggleExpandedRow(item.id)}
-                        className="px-2 py-1 bg-green-500 text-white rounded mr-2"
-                      >
-                        {expandedRows[item.id] ? 'Hide Details' : 'Show Details'}
-                      </button>
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="px-2 py-1 bg-blue-500 text-white rounded mr-2"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id, {
-                          sourceGambar: item.sourceGambar,
-                          modalContent: item.modalContent
-                        })}
-                        className="px-2 py-1 bg-red-500 text-white rounded"
-                      >
-                        Delete
-                      </button>
+                    <td colSpan="8" className="border border-gray-300 p-2 text-center">
+                      No portfolio items found
                     </td>
                   </tr>
-                  
-                  {/* Expanded row for details */}
-                  {expandedRows[item.id] && (
-                    <tr>
-                      <td colSpan="7" className="border border-gray-300 p-4 bg-gray-50">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Images */}
-                          <div>
-                            <h5 className="font-medium mb-2">Images:</h5>
-                            {item.modalContent?.images && item.modalContent.images.length > 0 ? (
-                              <ul className="list-disc pl-5">
-                                {item.modalContent.images.map((img, idx) => (
-                                  <li key={idx} className="mb-1">
-                                    <a href={img} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
-                                      Image {idx + 1}
-                                    </a>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p>No images available</p>
-                            )}
-                          </div>
-                          
-                          {/* Other details */}
-                          <div>
-                            <div className="mb-3">
-                              <h5 className="font-medium">Role:</h5>
-                              <p>{item.modalContent?.role || 'N/A'}</p>
-                            </div>
-                            
-                            <div className="mb-3">
-                              <h5 className="font-medium">Description:</h5>
-                              <p>{item.modalContent?.description || 'N/A'}</p>
-                            </div>
-                            
-                            <div>
-                              <h5 className="font-medium mb-1">Skills:</h5>
-                              {item.modalContent?.skills && item.modalContent.skills.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {item.modalContent.skills.map((skill, idx) => (
-                                    <span key={idx} className="bg-gray-200 px-2 py-1 rounded text-sm">
-                                      {skill}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p>No skills listed</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7" className="border border-gray-300 p-2 text-center">
-                  No portfolio items found
-                </td>
-              </tr>
-            )}
+                )}
+              </SortableContext>
+            </DndContext>
           </tbody>
         </table>
       </div>
