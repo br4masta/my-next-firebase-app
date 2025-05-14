@@ -37,7 +37,7 @@ export default function AdminPage() {
       </div>
       
       {/* Tab Navigation */}
-      <div className="flex mb-6">
+      <div className="flex mb-6 justify-center">
         <button 
           className={`px-6 py-2 ${activeTab === 'experience' ? 'bg-gray-700 text-white' : 'bg-gray-300'}`}
           onClick={() => setActiveTab('experience')}
