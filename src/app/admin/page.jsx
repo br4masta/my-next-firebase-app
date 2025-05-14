@@ -145,7 +145,7 @@ function ExperienceTab() {
       name: experience.name,
       tahun: experience.tahun,
       description: experience.description,
-      status: experience.status
+      type: experience.type
     });
     setEditMode(true);
     setCurrentId(experience.id);
