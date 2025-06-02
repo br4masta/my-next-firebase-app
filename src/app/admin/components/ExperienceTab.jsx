@@ -188,9 +188,17 @@ export default function ExperienceTab() {
       // Update state
       setExperiences(newExperiences);
       
-      // Update positions in database
-      for (const exp of updatedExperiences) {
-        await updateExperience(exp.id, { ...exp });
+      try {
+        // Update positions in database
+        for (const exp of updatedExperiences) {
+          await updateExperience(exp.id, { ...exp });
+        }
+        alert('Position updated successfully!');
+      } catch (error) {
+        console.error('Error updating positions:', error);
+        alert('Failed to update positions');
+        // Reload experiences to restore previous order
+        loadExperiences();
       }
     }
   };
